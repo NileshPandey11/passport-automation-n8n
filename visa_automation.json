@@ -1,0 +1,987 @@
+{
+  "name": "visa_automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "8eb654a1-364c-46db-868a-39fb9671e1b5",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c3b71346-2283-46e5-a906-03b9b6eb7899",
+      "name": "Webhook",
+      "webhookId": "8eb654a1-364c-46db-868a-39fb9671e1b5"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst body = item.body || item;\n\n// WhatsApp sender ka number aur naam\nconst from = body.From || body.from || \"\";\nconst phone = from.replace(\"whatsapp:\", \"\");\nconst name = body.ProfileName || body.name || \"\";\nconst text = (body.Body || body.text || \"\").trim();\n\n// 1. Agar Twilio se seedha media aaye (production number), to wahi use karo\nlet mediaUrl = body.MediaUrl0 || \"\";\n\n// 2. Warna message text mein se Google Drive link nikaalo\nif (!mediaUrl) {\n  const driveMatch = text.match(/https?:\\/\\/drive\\.google\\.com\\/[^\\s]+/);\n  if (driveMatch) {\n    const link = driveMatch[0];\n    const idMatch =\n      link.match(/\\/d\\/([a-zA-Z0-9_-]+)/) ||\n      link.match(/[?&]id=([a-zA-Z0-9_-]+)/);\n    if (idMatch) {\n      mediaUrl = `https://drive.google.com/uc?export=download&id=${idMatch[1]}`;\n    }\n  }\n}\n\nreturn [{\n  json: {\n    user_phone: phone,\n    user_name: name,\n    text: text,\n    media_url: mediaUrl\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "6c1797e2-04e8-40bd-bc2d-5219d09f5038",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1LDQrcxIvLKR_FEUB124Vp1nY0b3zrmEEbi19cWeVV4U/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Users",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "number",
+              "lookupValue": "={{ $json.user_phone }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        0
+      ],
+      "id": "ae4b51b3-a0ff-4e61-8860-f7e55a24d2ff",
+      "name": "Get row(s) in sheet",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "dG19Jvdpp4vyKmFu",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "82ca5e21-09d8-434c-a2e0-00facb0a43c0",
+              "leftValue": "={{ $json.number }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "81ee81e3-ee85-405a-92ec-3374dfb0547a",
+              "leftValue": "={{ $json.name }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        672,
+        0
+      ],
+      "id": "e092de02-9db6-443d-a685-27317f28aa27",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1LDQrcxIvLKR_FEUB124Vp1nY0b3zrmEEbi19cWeVV4U/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Users",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $('Code in JavaScript').item.json.user_name }}",
+            "number": "={{ $('Code in JavaScript').item.json.user_phone }}",
+            "state": "AWAITING_DOCUMENTS",
+            "media_url": "={{ $('Code in JavaScript').item.json.media_url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "number",
+              "displayName": "number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "state",
+              "displayName": "state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "media_url",
+              "displayName": "media_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        928,
+        208
+      ],
+      "id": "f6b2376e-a923-4311-892f-673039ddec2d",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "dG19Jvdpp4vyKmFu",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 4
+                },
+                "conditions": [
+                  {
+                    "id": "d0ca834e-0e68-472e-9a24-d25cacd5f9d1",
+                    "leftValue": "={{ $json.state }}",
+                    "rightValue": "AWAITING_DOCUMENTS",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "awaiting_doc"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.5,
+      "position": [
+        928,
+        -208
+      ],
+      "id": "2b8ad55a-2c70-4baa-9ac1-cb6124670239",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "0e078e86-e82b-4586-9fb5-7fbca437c430",
+              "leftValue": "={{ $('Code in JavaScript').item.json.media_url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        1168,
+        -448
+      ],
+      "id": "6bcc0def-78ad-4f7b-8ceb-ea8543f2ee4e",
+      "name": "Check docs"
+    },
+    {
+      "parameters": {
+        "method": "=GET",
+        "url": "={{ $('Code in JavaScript').item.json.media_url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1488,
+        -640
+      ],
+      "id": "4e7ad573-8399-4620-8acf-abdaa78b1dcc",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1LDQrcxIvLKR_FEUB124Vp1nY0b3zrmEEbi19cWeVV4U/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Users",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "state": "DOCUMENT_PROCESSING",
+            "media_url": "={{ $('Code in JavaScript').item.json.media_url }}",
+            "number": "={{ $('Code in JavaScript').item.json.user_phone }}"
+          },
+          "matchingColumns": [
+            "number"
+          ],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "number",
+              "displayName": "number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "state",
+              "displayName": "state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "media_url",
+              "displayName": "media_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1488,
+        -480
+      ],
+      "id": "3822ec2b-f29c-487d-84e4-7a7d2a2d9173",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "dG19Jvdpp4vyKmFu",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.cloud.llamaindex.ai/api/v2/parse/upload",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer llx-mxVK33BKtfZSGFp2AmX8H5uVuaz3FQMBAgcKjLCdoBorgEhl"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "configuration",
+              "value": "{\"tier\": \"cost_effective\", \"version\": \"latest\"}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1728,
+        -640
+      ],
+      "id": "e2dad103-b97f-4d78-9009-2c67b5888075",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1952,
+        -640
+      ],
+      "id": "5daf3cdc-c491-4360-9d2d-22f56d5bf30e",
+      "name": "Wait",
+      "webhookId": "aaf8e287-90e0-46e5-9dc8-60eb951793a3"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.cloud.llamaindex.ai/api/v2/parse/{{ $json.id }}?expand=text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer llx-mxVK33BKtfZSGFp2AmX8H5uVuaz3FQMBAgcKjLCdoBorgEhl"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2192,
+        -640
+      ],
+      "id": "6d4dcfcb-54aa-409c-b60d-37729ac331e6",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "87a5cc08-d883-4df3-b151-05dbed986eed",
+              "leftValue": "={{ $json.job.status }}",
+              "rightValue": "COMPLETED",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        2416,
+        -640
+      ],
+      "id": "da4c80f6-6bd4-43e4-afbf-87849efa4894",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $env.TWILIO_ACCOUNT_SID }}/Messages.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twilioApi",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "=whatsapp:{{ $('Code in JavaScript').item.json.user_phone }}"
+            },
+            {
+              "name": "From",
+              "value": "whatsapp:+17372508034"
+            },
+            {
+              "name": "ContentSid",
+              "value": "HXfe5ab5f00277942d4d4200328b4d403c"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1536,
+        176
+      ],
+      "id": "c44604c5-816e-40b6-8f4b-ac7e599e8916",
+      "name": "HTTP Request3",
+      "credentials": {
+        "twilioApi": {
+          "id": "N6yexRB8yxt7On5L",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('HTTP Request2').item.json.text.pages.map(p => p.text).join(\"\\n\") }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a passport data extractor. Extract the passport details from the given text and return ONLY valid JSON with these keys: full_name, passport_number, date_of_birth, expiry_date, nationality. If a field is missing, use null. No extra text, no markdown."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        2768,
+        -624
+      ],
+      "id": "5ac4a4a3-06d8-4569-8cad-7e7d13d780e9",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        2752,
+        -384
+      ],
+      "id": "e8c9e813-4717-4be3-9208-a68d598f4b1a",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "IwoyOOhboNgUFN9h",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = String($json.text || \"\").replace(/```json|```/g, \"\").trim();\nlet data;\ntry {\n  data = JSON.parse(raw);\n} catch (e) {\n  throw new Error(\"LLM did not return valid JSON: \" + raw);\n}\nreturn [{ json: data }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3168,
+        -624
+      ],
+      "id": "380d0745-0752-45c0-9e68-96fed85b7b2d",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1LDQrcxIvLKR_FEUB124Vp1nY0b3zrmEEbi19cWeVV4U",
+          "mode": "list",
+          "cachedResultName": "visa_automation_n8n",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LDQrcxIvLKR_FEUB124Vp1nY0b3zrmEEbi19cWeVV4U/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1140159665,
+          "mode": "list",
+          "cachedResultName": "Cases",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1LDQrcxIvLKR_FEUB124Vp1nY0b3zrmEEbi19cWeVV4U/edit#gid=1140159665"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "number": "={{ $('Code in JavaScript').item.json.user_phone }}",
+            "passport_number": "={{ $json.passport_number }}",
+            "payment_status": "pending",
+            "full_name": "={{ $json.full_name }}",
+            "date of birth": "={{ $json.date_of_birth }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "full_name",
+              "displayName": "full_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "number",
+              "displayName": "number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "passport_number",
+              "displayName": "passport_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "payment_status",
+              "displayName": "payment_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date of birth",
+              "displayName": "date of birth",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3392,
+        -624
+      ],
+      "id": "8a13119d-eaa1-46b2-8908-0154c93908d7",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "dG19Jvdpp4vyKmFu",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1LDQrcxIvLKR_FEUB124Vp1nY0b3zrmEEbi19cWeVV4U/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Users",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "state": "PAYMENT_PENDING",
+            "media_url": "={{ $('Code in JavaScript').item.json.media_url }}",
+            "number": "={{ $('Code in JavaScript').item.json.user_phone }}"
+          },
+          "matchingColumns": [
+            "number"
+          ],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "number",
+              "displayName": "number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "state",
+              "displayName": "state",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "media_url",
+              "displayName": "media_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3424,
+        -432
+      ],
+      "id": "203693b6-3b1e-48dc-9d29-c185f0c8b49d",
+      "name": "Update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "dG19Jvdpp4vyKmFu",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        []
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Check docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check docs": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "3b156240-4dc2-478a-ab05-aac65c393149",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "75a65102cab9b95fb3bc9d916ef75845a5428c506bbfccd9ca4ab42e8d7a1962"
+  },
+  "nodeGroups": [],
+  "id": "vnrKEHcpdLO7pAlh",
+  "tags": []
+}
